@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: StatsHelper
+Version: 0.1
+Summary: A way to use sklearn more easily when going through an analysis project.
+Home-page: https://bitbucket.org/account/user/hmbi/projects/ETL/
+Author: timmcwilliams
+Author-email: tim@notarealemailaddress.com
+License: GPLv3
+Description-Content-Type: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
