@@ -1,4 +1,7 @@
 # Libs needed
+import random
+import string
+import pickle
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -10,52 +13,69 @@ from sklearn import metrics
 from sklearn import linear_model
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.cross_validation import cross_val_score, cross_val_predict
 from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
-rcParams['figure.figsize'] = 25, 10
-SMALL_SIZE = 8
-MEDIUM_SIZE = 10
-BIGGER_SIZE = 12
-plt.rc('font', size=MEDIUM_SIZE)         # controls default text sizes
-plt.rc('axes', titlesize=MEDIUM_SIZE)    # font size of the axes title
-plt.rc('axes', labelsize=MEDIUM_SIZE)    # font size of the x and y labels
-plt.rc('xtick', labelsize=MEDIUM_SIZE)   # font size of the tick labels
-plt.rc('ytick', labelsize=MEDIUM_SIZE)   # font size of the tick labels
-plt.rc('legend', fontsize=MEDIUM_SIZE)   # legend font size
-plt.rc('figure', titlesize=BIGGER_SIZE)  # font size of the figure title
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', None)
+
+class pickleItYo:
+    '''Takes two dictionary objects and combines them into one pickle object'''
+
+    def __init__(self, coff_dict, perform_dict):
+        self.coff_dict = coff_dict
+        self.perform_dict = perform_dict
+
+    def combine_pickels(self, filename):
+        ''' 
+        Combines the two dicts into one pickle object.
+        Assigns a random string of letter and numbers in-front of the actual filename
+            ex. hfj8w_model_results.pkl
+
+        filename -> the name of the file that the pickle object is saved to
+        '''
+        model_file_name = ''.join(random.choice(string.ascii_lowercase + string.digits) for i in range(2, 8)) + '_' + filename
+
+        pickle_dict = self.coff_dict.copy()
+        pickle_dict.update(self.perform_dict)
+
+        output = open(filename, 'wb')
+        final_pickle = pickle.dump(pickle_dict, open(model_file_name, "wb"))
+        
+        return final_pickle
 
 ### EDA 
-def distribution_plot_by_var(df, var):
+def distribution_plot_by_var(df, var, fig_filename):
     '''
     Plots the distribution of numerical variables
     Pair plot or distribution plot (histogram and scatter)
     '''
     distribution_plot = sns.pairplot(df, hue=var, size=3, diag_kind="kde", diag_kws= {'shade':True}, plot_kws = {'alpha':0.3})
+    fig = distribution_plot.fig
+    fig.savefig(fig_filename)
 
     return distribution_plot
 
-def distribution_plot(df):
+def distribution_plot(df, fig_filename):
     '''
     Plots the distribution of numerical variables
     Pair plot or distribution plot (histogram and scatter)
     '''
     distribution_plot = sns.pairplot(df, size=3, diag_kind="kde", diag_kws= {'shade':True}, plot_kws = {'alpha':0.3})
+    fig = distribution_plot.fig
+    fig.savefig(fig_filename)
 
     return distribution_plot
 
-def joint_plot(df, var1, var2, shade):
+def joint_plot(df, var1, var2, shade, fig_filename):
     '''
     Creates a joint plot for two numeric variables:
     scatter plot/distribution of the two variables
     r-squared and p-value
     ''' 
     joint = sns.jointplot(var1, var2, data=df, kind='reg', color=shade)
+    fig = joint.fig
+    fig.savefig(fig_filename)
 
     return joint
 
-def corr_matrix(df):
+def corr_matrix(df, fig_filename):
     '''Generates Correlation Matrix'''
     corr = df.corr()
     # Generate a mask for the upper triangle
@@ -65,6 +85,7 @@ def corr_matrix(df):
     colormap = sns.diverging_palette(240, 10, n=9, as_cmap=True)
     sns.heatmap(corr, mask=mask, cmap=colormap, center=0,
                 square=True, linewidths=.5, cbar_kws={"shrink": 1})
+    f.savefig(fig_filename)
  
 def histo(df, var, bins):
     '''Generates basic histograms'''
@@ -72,18 +93,23 @@ def histo(df, var, bins):
     plt.hist(df[var], num_bins, normed=1, facecolor='blue', alpha=0.5)
     plt.show()
 
-def kde_plot(df, var, title, xlabel):
+def kde_plot(df, var, title, xlabel, fig_filename):
     ''' Generates a Kernel Density Plot'''
     kde = sns.kdeplot(df[var], shade=True)
     plt.title(title)
     plt.xlabel(xlabel)
+    fig = kde.get_figure()
+    fig.savefig(fig_filename)
 
-def scatter(x, y, title, xlabel, ylabel):
+def scatter(x, y, title, xlabel, ylabel, fig_filename):
     '''Generates Scatter plot by date'''
+    fig = plt.figure()
     plt.plot(x, y)
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    fig = kde.get_figure()
+    fig.savefig(fig_filename)
 
 ### t-tests
 def assumptions(var, x, y):
@@ -208,31 +234,28 @@ def welch_ttest_adjusted_pval(alpha, x, y):
         print("AHHH the means are the same!!!!!")
 
 ### Regressions
-def linear_regression(X, y, cv):
+def linear_regression(X, y, combined_tables, res, qq, preds):
     '''
-    Linear regression
+    Linear regressionL split the data, fit a model, get predictions and model stats
     X -> independent variables
     y -> dependent variable
-    cv -> number of K-folds for cross-validation 
+    combined_tables -> name of file to save the combined two tables to (.pkl)
+    res -> filename if the residual plot (.png)
+    qq -> filename of the Q-Q plot (.png)
+    preds -> filename of the predictions plot (.png)
     '''
-    # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-    # print("Training Set:", X_train.shape, y_train.shape)
-    # print("Testing Set:",X_test.shape, y_test.shape)
 
     # Fit a model
     lm = linear_model.LinearRegression()
     model = lm.fit(X_train, y_train)
     params = np.append(lm.intercept_,lm.coef_)
     predictions = lm.predict(X_test)
-
     # Actual - prediction = residuals
     residuals = y_test - predictions
-
     # VIF 
     rsquared = r2_score(y_test, predictions)
     VIF = 1/(1-(rsquared))
-
     # MSE & MAE
     MSE = mean_squared_error(y_test, predictions)
     MAE = mean_absolute_error(y_test, predictions)
@@ -251,48 +274,45 @@ def linear_regression(X, y, cv):
     # Populate the model stats dataframe
     model_stats_df = pd.DataFrame()
     model_stats_df["Coefficients"],model_stats_df["Standard Errors"],model_stats_df["t-values"],model_stats_df["p-values"] = [params,standard_error,t_stat,p_values]
+    model_stats_dict = model_stats_df.to_dict()
+
+    # Populate a second table for VIF, r-squared, MAE, and MSE
+    model_performance_df = pd.DataFrame()
+    model_performance = pd.DataFrame({"VIF":VIF, "R-Squared":rsquared, "MAE":MAE, "MSE":MSE}, index=[0])
+    model_performance_df = model_performance_df.append(model_performance)
+    model_performance_dict = model_performance_df.to_dict()
+
     print(model_stats_df)
     print("")
-    print("Variance Inflation Factor: ", VIF)
-    print("R-Squared:", rsquared)
-    print("MAE: ", MAE)
-    print("MSE: ", MSE)
-    # print("Model Coefficients:", model.coef_)
-    
+    print(model_performance_df)
+
+    # Combine the two pickled tables 
+    conbined_pickles = pickleItYo(model_stats_dict, model_performance_dict)
+    pickles = conbined_pickles.combine_pickels(combined_tables)
+
     # Plot the residuals 
-    plt.figure()
+    fig1 = plt.figure()
     plt.scatter(lm.predict(X_train), lm.predict(X_train) - y_train, c='b', s=40, alpha=0.5)
     plt.scatter(lm.predict(X_test), lm.predict(X_test) - y_test, c='g', s=40)
     plt.hlines(y=0, xmin=0, xmax=100)
     plt.title("Residual Plot Using Training (blue) and Testing (green) Data")
     plt.ylabel("Residuals")
     plt.xlabel("Predicted Value")
-
-    plt.figure()
+    fig1.savefig(res)
+    # Q-Q Plot
+    fig2 = plt.figure()
     stats.probplot(residuals, dist="norm", plot=plt)
     plt.title("QQ-Plot of the Residuals")
     plt.ylabel("Ordered Values")
     plt.xlabel("Quantiles")
-
+    fig2.savefig(qq)
     # Plot the predictions
-    plt.figure()
+    fig3 = plt.figure()
     plt.scatter(y_test, predictions, marker='^', c='b')
     plt.title("Regression Model")
     plt.xlabel("True Values")
     plt.ylabel("Predictions")
-
-    ## Cross-Validation 
-    scores = cross_val_score(model, X_test, y_test, cv=cv)
-    mean_score = np.mean(scores)
-    print("Average R-Squared Cross-validated:", mean_score)
-
-    # Plot the CV predictions
-    predictions = cross_val_predict(model, X_test, y_test, cv=cv)
-    plt.figure()
-    plt.scatter(y_test, predictions, marker='s', c='g')
-    plt.title("Regression Model With K-fold Cross-Validation")
-    plt.xlabel("True Values")
-    plt.ylabel("Predictions")
+    fig3.savefig(preds)
 
 def LASSO_regression(X, y, alpha, cv):
     '''
