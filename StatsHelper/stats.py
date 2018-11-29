@@ -1,19 +1,18 @@
 # Libs needed
-import random
-import string
-import pickle
-import pandas as pd
 import numpy as np
+import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
-from pylab import rcParams
 from scipy import stats
-from sklearn import ensemble
-from sklearn import metrics
-from sklearn import linear_model
+from pylab import rcParams
+import random, string, pickle
+import matplotlib.pyplot as plt
+from imblearn.over_sampling import SMOTE
+from sklearn.feature_selection import RFE
+from sklearn import ensemble, metrics, linear_model
+from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
+from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error, classification_report, roc_auc_score, roc_curve
 
 class pickleItYo:
     '''Takes two dictionary objects and combines them into one pickle object'''
@@ -549,6 +548,88 @@ def gradient_boosting(X, y, n_estimators, criterion, learning_rate, max_depth, r
     plt.xlabel('Relative Importance')
     plt.title('Variable Importance')
     plt.show()
+    
+def logit_feature_selection(X, y):
+    '''
+    Perform feature selection for logistic regression using SMOTE and RFE.
+    SMOTE algorithm(Synthetic Minority Oversampling Technique). 
+        Works by creating synthetic samples from the minor class instead of creating copies,
+        Randomly choosing one of the k-nearest-neighbors and using it to create a similar, but randomly tweaked, new observations.
+    Recursive Feature Elimination (RFE) is based on the idea to repeatedly construct a model and choose either the best or 
+        worst performing feature, setting the feature aside and then repeating the process with the rest of the features
+
+    Returns the best features
+
+    X -> Independent variables 
+    y -> Dependent variable (binary)
+    '''
+    os = SMOTE(random_state=0)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
+    columns = X_train.columns
+    os_data_X,os_data_y=os.fit_sample(X_train, y_train)
+    os_data_X = pd.DataFrame(data=os_data_X,columns=columns )
+    os_data_y= pd.DataFrame(data=os_data_y,columns=y)
+
+    # Check the numbers of our data
+    print("length of oversampled data is ",len(os_data_X))
+    print("Number of no subscription in oversampled data",len(os_data_y[os_data_y['y']==0]))
+    print("Number of subscription",len(os_data_y[os_data_y['y']==1]))
+    print("Proportion of no subscription data in oversampled data is ",len(os_data_y[os_data_y['y']==0])/len(os_data_X))
+    print("Proportion of subscription data in oversampled data is ",len(os_data_y[os_data_y['y']==1])/len(os_data_X))
+
+    logit = LogisticRegression()
+
+    # Feature selection 
+    rfe = RFE(logit, 20)
+    rfe = rfe.fit(os_data_X, os_data_y.values.ravel())
+    print(rfe.support_)
+    print(rfe.ranking_)
+
+def logit_regression(X, y):
+    '''
+    Perform logistic regression
+
+    X -> Feature selection variables 
+    y -> Dependent variable (binary)
+    '''
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
+
+    logit = LogisticRegression()
+    logit.fit(X_train, y_train)
+    y_pred = logreg.predict(X_test)
+    confusion_matrix = confusion_matrix(y_test, y_pred)
+    classification_report = classification_report(y_test, y_pred)
+
+    # Convert the classification report and confusion matrix to a df 
+    classification_report_df = pd.DataFrame(classification_report)
+    classification_report_df_dict = classification_report_df_dict.to_dict()
+    confusion_matrix_df = pd.DataFrame(confusion_matrix)
+    confusion_matrix_df_dict = confusion_matrix_df_dict.to_dict()
+
+    # Combine the classification report and confusion matrix 
+    conbined_pickles = pickleItYo(classification_report_df_dict, confusion_matrix_df_dict)
+    pickles = conbined_pickles.combine_pickels(combined_tables)
+
+    # ROC Curve
+    logit_roc_auc = roc_auc_score(y_test, logreg.predict(X_test))
+    fpr, tpr, thresholds = roc_curve(y_test, logreg.predict_proba(X_test)[:,1])
+    plt.figure()
+    plt.plot(fpr, tpr, label='Logistic Regression (area = %0.2f)' % logit_roc_auc)
+    plt.plot([0, 1], [0, 1],'r--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic')
+    plt.legend(loc="lower right")
+    plt.savefig('Log_ROC')
+    plt.show()
+
+    print('Accuracy of logistic regression classifier on test set: {:.2f}'.format(logreg.score(X_test, y_test)))
+    print("")
+    print(confusion_matrix)
+    print("")
+    print(classification_report)
 
 ## Clustering 
 def plot_clusters(data, algorithm, args, kwds):
