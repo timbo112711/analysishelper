@@ -1,3 +1,11 @@
+'''
+EDA Plots 
+Version: 1.0
+
+This module made to do EDA before going into more in-depth analyses.
+Creates plots and then saves them to a folder to later use.
+'''
+
 # Libs needed
 import numpy as np
 import pandas as pd
