@@ -1,3 +1,10 @@
+'''
+Data Transformations
+Version: 1.1
+
+This module is used for transforming your data.
+'''
+
 # Libs needed
 import math
 import datetime
