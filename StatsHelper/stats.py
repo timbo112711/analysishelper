@@ -1,3 +1,11 @@
+'''
+Stats
+Version: 1.1
+
+This module is used for advanced data analysis.
+From basic t-tests to more advanced methods like regression and clustering 
+'''
+
 # Libs needed
 import numpy as np
 import pandas as pd
