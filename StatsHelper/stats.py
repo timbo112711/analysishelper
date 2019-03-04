@@ -169,7 +169,7 @@ def welch_ttest_adjusted_pval(alpha, x, y):
         print("----------------------")
         print("AHHH the means are the same!!!!!")
 
-### Regressions
+## Regressions
 def linear_regression(X, y, combined_tables, res, qq, preds):
     '''
     Linear regressionL split the data, fit a model, get predictions and model stats
@@ -230,7 +230,6 @@ def linear_regression(X, y, combined_tables, res, qq, preds):
     fig1 = plt.figure()
     plt.scatter(lm.predict(X_train), lm.predict(X_train) - y_train, c='b', s=40, alpha=0.5)
     plt.scatter(lm.predict(X_test), lm.predict(X_test) - y_test, c='g', s=40)
-    plt.hlines(y=0, xmin=0, xmax=100)
     plt.title("Residual Plot Using Training (blue) and Testing (green) Data")
     plt.ylabel("Residuals")
     plt.xlabel("Predicted Value")
@@ -250,14 +249,21 @@ def linear_regression(X, y, combined_tables, res, qq, preds):
     plt.ylabel("Predictions")
     fig3.savefig(preds)
 
-def LASSO_regression(X, y, alpha, cv):
+def LASSO_regression(X, y, alpha, filename, coef_table, perfom_table, combined_tables, res, qq, preds):
     '''
     LASSO regression
     X -> independent variables
     y -> dependent variable
     alpha -> constant that multiplies the L1 term
-    cv -> number of K-folds for cross-validation 
+    filename -> name of the file to save the model to (.pkl) 
+    coef_table -> name of the file to save the coefficients of model to (.pkl)
+    perfom_table -> name of the file to save the model performance variables to (.pkl)
+    combined_tables -> name of file to save the combined two tables to (.pkl)
+    res -> filename if the residual plot (.png)
+    qq -> filename of the Q-Q plot (.png)
+    preds -> filename of the predictions plot (.png) 
     '''
+
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
     # print("Training Set:", X_train.shape, y_train.shape)
@@ -290,61 +296,74 @@ def LASSO_regression(X, y, alpha, cv):
     standard_error = np.round(standard_error,3)
     t_stat = np.round(t_stat,3)
     p_values = np.round(p_values,3)
-    params = np.round(params,4)
+    params = np.round(params,4)   
+
     # Populate the model stats dataframe
     model_stats_df = pd.DataFrame()
     model_stats_df["Coefficients"],model_stats_df["Standard Errors"],model_stats_df["t-values"],model_stats_df["p-values"] = [params,standard_error,t_stat,p_values]
+    model_stats_dict = model_stats_df.to_dict()
+
+    # Populate a second table for VIF, r-squared, MAE, and MSE
+    model_performance_df = pd.DataFrame()
+    model_performance = pd.DataFrame({"VIF":VIF, "R-Squared":rsquared, "MAE":MAE, "MSE":MSE}, index=[0])
+    model_performance_df = model_performance_df.append(model_performance)
+    model_performance_dict = model_performance_df.to_dict()
+
     print(model_stats_df)
     print("")
-    print("Variance Inflation Factor: ", VIF)
-    print("R-Squared:", rsquared)
-    print("MAE: ", MAE)
-    print("MSE: ", MSE)
-    # print("Model Coefficients:", model.coef_)
+    print(model_performance_df)
+
+    # Combine the two pickled tables 
+    conbined_pickles = pickleItYo(model_stats_dict, model_performance_dict)
+    pickles = conbined_pickles.combine_pickels(combined_tables)
 
     # Plot the residuals 
-    plt.figure()
+    fig1 = plt.figure()
     plt.scatter(lm.predict(X_train), lm.predict(X_train) - y_train, c='b', s=40, alpha=0.5)
     plt.scatter(lm.predict(X_test), lm.predict(X_test) - y_test, c='g', s=40)
-    plt.hlines(y=0, xmin=0, xmax=100)
     plt.title("Residual Plot Using Training (blue) and Testing (green) Data")
     plt.ylabel("Residuals")
     plt.xlabel("Predicted Value")
+    fig1.savefig(res)
 
-    plt.figure()
+    fig2 = plt.figure()
     stats.probplot(residuals, dist="norm", plot=plt)
     plt.title("QQ-Plot of the Residuals")
     plt.ylabel("Ordered Values")
     plt.xlabel("Quantiles")
+    fig2.savefig(qq)
 
     # Plot the predictions
-    plt.figure()
+    fig3 = plt.figure()
     plt.scatter(y_test, predictions, marker='^', c='b')
     plt.title("Regression Model")
     plt.xlabel("True Values")
     plt.ylabel("Predictions")
+    fig3.savefig(preds)
 
-    ## Cross-Validation 
-    scores = cross_val_score(model, X_test, y_test, cv=cv)
-    mean_score = np.mean(scores)
-    print("Average R-Squared Cross-validated:", mean_score)
+    # Dump the trained model into a Pickle
+    lasso_regression_pkl_filename = filename
+    # Open the file to save as pkl file
+    lasso_regression_model_pkl = open(lasso_regression_pkl_filename, 'wb')
+    pickle.dump(model, lasso_regression_model_pkl)
+    # Close the pickle instances
+    lasso_regression_model_pkl.close()
 
-    # Plot the CV predictions
-    predictions = cross_val_predict(model, X_test, y_test, cv=cv)
-    plt.figure()    
-    plt.scatter(y_test, predictions, marker='s', c='g')
-    plt.title("Regression Model With K-fold Cross-Validation")
-    plt.xlabel("True Values")
-    plt.ylabel("Predictions")
-
-def ElasticNet_regression(X, y, alpha, cv):
+def ElasticNet_regression(X, y, alpha, filename, coef_table, perfom_table, combined_tables, res, qq, preds):
     '''
     ElasticNet regression (Hybrid LASSO)
     X -> independent variables
     y -> dependent variable
     alpha -> constant that multiplies the penalty terms. Defaults to 1.0
-    cv -> number of K-folds for cross-validation 
+    filename -> name of the file to save the model to (.pkl) 
+    coef_table -> name of the file to save the coefficients of model to (.pkl)
+    perfom_table -> name of the file to save the model performance variables to (.pkl)
+    combined_tables -> name of file to save the combined two tables to (.pkl)
+    res -> filename if the residual plot (.png)
+    qq -> filename of the Q-Q plot (.png)
+    preds -> filename of the predictions plot (.png)
     '''
+
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
     # print("Training Set:", X_train.shape, y_train.shape)
@@ -378,51 +397,57 @@ def ElasticNet_regression(X, y, alpha, cv):
     t_stat = np.round(t_stat,3)
     p_values = np.round(p_values,3)
     params = np.round(params,4)
+    
     # Populate the model stats dataframe
     model_stats_df = pd.DataFrame()
     model_stats_df["Coefficients"],model_stats_df["Standard Errors"],model_stats_df["t-values"],model_stats_df["p-values"] = [params,standard_error,t_stat,p_values]
+    model_stats_dict = model_stats_df.to_dict()
+
+    # Populate a second table for VIF, r-squared, MAE, and MSE
+    model_performance_df = pd.DataFrame()
+    model_performance = pd.DataFrame({"VIF":VIF, "R-Squared":rsquared, "MAE":MAE, "MSE":MSE}, index=[0])
+    model_performance_df = model_performance_df.append(model_performance)
+    model_performance_dict = model_performance_df.to_dict()
+
     print(model_stats_df)
     print("")
-    print("Variance Inflation Factor: ", VIF)
-    print("R-Squared:", rsquared)
-    print("MAE: ", MAE)
-    print("MSE: ", MSE)
-    # print("Model Coefficients:", model.coef_)
+    print(model_performance_df)
+
+    # Combine the two pickled tables 
+    conbined_pickles = pickleItYo(model_stats_dict, model_performance_dict)
+    pickles = conbined_pickles.combine_pickels(combined_tables)
     
     # Plot the residuals 
-    plt.figure()
+    fig1 = plt.figure()
     plt.scatter(lm.predict(X_train), lm.predict(X_train) - y_train, c='b', s=40, alpha=0.5)
     plt.scatter(lm.predict(X_test), lm.predict(X_test) - y_test, c='g', s=40)
-    plt.hlines(y=0, xmin=0, xmax=100)
     plt.title("Residual Plot Using Training (blue) and Testing (green) Data")
     plt.ylabel("Residuals")
     plt.xlabel("Predicted Value")
+    fig1.savefig(res)
 
-    plt.figure()
+    fig2 = plt.figure()
     stats.probplot(residuals, dist="norm", plot=plt)
     plt.title("QQ-Plot of the Residuals")
     plt.ylabel("Ordered Values")
     plt.xlabel("Quantiles")
+    fig2.savefig(qq)
 
     # Plot the predictions
-    plt.figure()
+    fig3 = plt.figure()
     plt.scatter(y_test, predictions, marker='^', c='b')
     plt.title("Regression Model")
     plt.xlabel("True Values")
     plt.ylabel("Predictions")
+    fig3.savefig(preds)
 
-    ## Cross-Validation 
-    scores = cross_val_score(model, X_test, y_test, cv=cv)
-    mean_score = np.mean(scores)
-    print("Average R-Squared Cross-validated:", mean_score)
-
-    # Plot the CV predictions
-    predictions = cross_val_predict(model, X_test, y_test, cv=cv)
-    plt.figure()
-    plt.scatter(y_test, predictions, marker='s', c='g')
-    plt.title("Regression Model With K-fold Cross-Validation")
-    plt.xlabel("True Values")
-    plt.ylabel("Predictions")
+    # Dump the trained model into a Pickle
+    elastic_regression_pkl_filename = filename
+    # Open the file to save as pkl file
+    elastic_regression_model_pkl = open(elastic_regression_pkl_filename, 'wb')
+    pickle.dump(model, elastic_regression_model_pkl)
+    # Close the pickle instances
+    elastic_regression_model_pkl.close()
 
 def gradient_boosting(X, y, n_estimators, criterion, learning_rate, max_depth, random_state, loss):
     '''
@@ -475,7 +500,7 @@ def gradient_boosting(X, y, n_estimators, criterion, learning_rate, max_depth, r
 
     # Plot feature importance
     feature_importance = clf.feature_importances_
-    # make importances relative to max importance
+    # Make importances relative to max importance
     feature_importance = 100.0 * (feature_importance / feature_importance.max())
     sorted_idx = np.argsort(feature_importance)
     pos = np.arange(sorted_idx.shape[0]) + .5
@@ -485,7 +510,7 @@ def gradient_boosting(X, y, n_estimators, criterion, learning_rate, max_depth, r
     plt.xlabel('Relative Importance')
     plt.title('Variable Importance')
     plt.show()
-    
+
 def logit_feature_selection(X, y):
     '''
     Perform feature selection for logistic regression using SMOTE and RFE.
@@ -568,7 +593,6 @@ def logit_regression(X, y):
     print("")
     print(classification_report)
 
-## Clustering 
 def plot_clusters(data, algorithm, args, kwds):
     '''
     Clustering function that can use any type of clustering algorithm
@@ -583,7 +607,7 @@ def plot_clusters(data, algorithm, args, kwds):
     end_time = time.time()
     palette = sns.color_palette('deep', np.unique(labels).max() + 1)
     colors = [palette[x] if x >= 0 else (0.0, 0.0, 0.0) for x in labels]
-    plt.scatter(data.T[0], data.T[1], c=colors, **plot_kwds)
+    plt.scatter(data.T[0], data.T[1], c=colors)
     frame = plt.gca()
     frame.axes.get_xaxis().set_visible(False)
     frame.axes.get_yaxis().set_visible(False)
